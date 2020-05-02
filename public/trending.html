@@ -1,0 +1,78 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="description" content="Official server of the ReciMe mobile app.">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="stylesheet" type="text/css" href="css/trending.css">
+
+    <title>ReciMe - Trending</title>
+</head>
+
+<body>
+    <div id="header">
+        <h2><a href="https://recime.fabiandean.dev">ReciMe</a></h2>
+    </div>
+
+    <noscript>
+        <h3>JavaScript is disabled.</h3>
+    </noscript>
+    <script>
+        let recipes;
+
+        async function getRecipes() {
+            let res = await fetch('/api/utils/getTrending');
+            if (res.status === 200) {
+                recipes = await res.json();
+            } else {
+                recipes = [];
+            }
+        }
+
+        async function populateList() {
+            await getRecipes();
+            const list = document.querySelector("ul");
+            // if there are no recipes in the list to show, display error message
+            if (recipes.length == 0) {
+                const message = document.getElementById("error-message");
+                message.style.display = "block";
+                return;
+            }
+            recipes.map((recipe, index) => {
+                listItem = document.createElement("li");
+                let div = document.createElement("div");
+                div.style.display = "flex";
+                div.style.flexDirection = "row";
+                let img = document.createElement("img");
+                img.src = "https://spoonacular.com/recipeImages/" + recipe.id + "-90x90.jpg";
+                let title = document.createElement("h3");
+                title.innerText = recipe.title;
+                div.appendChild(img);
+                div.appendChild(title);
+                // wrap div in an anchor tag that links to the recipe's page on Spoonacular
+                let link = document.createElement("a");
+                link.href = "https://spoonacular.com/recipes/" + recipe.title.split(" ").join("-") +
+                    "-" + recipe.id;
+                link.appendChild(div);
+                listItem.appendChild(link);
+                list.appendChild(listItem);
+            });
+        }
+
+        populateList();
+    </script>
+
+    <div id="body">
+        <h1 id="title">Trending</h1>
+        <noscript>
+            <p style="margin-top: 10px">Enable JavaScript to view content.</p>
+        </noscript>
+        <div id="error-message">
+            <p>Error getting trending recipes.</p>
+        </div>
+        <ul></ul>
+    </div>
+</body>
+
+</html>
