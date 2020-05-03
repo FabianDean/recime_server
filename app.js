@@ -20,7 +20,12 @@ const firebaseApp = admin.initializeApp({
 });
 
 const firestore = firebaseApp.firestore();
+
 app.use("/api", express.static("public"));
+
+app.get("/", (req, res) => {
+  res.redirect("/api/trending.html");
+});
 
 let trendingRecipes = "";
 
@@ -134,11 +139,11 @@ app.get("/api/utils/getTrending", (req, res) => {
  * Temporary route for dev purposes
  * updateRecipes() will only be called by cron job when it's confirmed to be working
  */
-app.get("/update", (req, res) => {
-  updateRecipes().then((result) => {
-    res.send(result);
-  });
-});
+// app.get("/update", (req, res) => {
+//   updateRecipes().then((result) => {
+//     res.send(result);
+//   });
+// });
 
 /**
  * @summary
