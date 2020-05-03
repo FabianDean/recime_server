@@ -4,7 +4,7 @@
   "description": "Official server for the ReciMe app developed by Fabian Dean. The server performs daily tasks such as updating the Trending recipes section for the home page of ReciMe and possibly future tasks of similar complexity. No user data is stored or manipulated on this server.",
   "main": "app.js",
   "scripts": {
-    "start": "nodemon app.js",
+    "start": "node app.js",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "keywords": [
@@ -23,5 +23,8 @@
     "firebase-admin": "^8.10.0",
     "nodemon": "^2.0.3",
     "unirest": "^0.6.0"
+  },
+  "engines": {
+    "node": "10.16.0"
   }
 }

@@ -4,8 +4,12 @@ const admin = require("firebase-admin");
 const unirest = require("unirest");
 const express = require("express");
 const app = express();
-const port = 3000;
+const port = process.env.PORT;
 
+/**
+ * @summary
+ * Connect to the ReciMe Firebase project using credentials stored as env vars
+ */
 const firebaseApp = admin.initializeApp({
   credential: admin.credential.cert({
     projectId: process.env.FIREBASE_PROJECT_ID,
@@ -47,6 +51,7 @@ const initTrendingRecipes = async () => {
 /**
  * @summary
  * Call spoonacular API for list of 10 popular recipes to use for trendng section in ReciMe
+ * @returns recipes, or -1 if error
  */
 const getRecipesFromAPI = async () => {
   let request = unirest(
@@ -83,6 +88,7 @@ const getRecipesFromAPI = async () => {
  * @summary
  * Update the recipes currently in the Firebase projects with new ones from
  * calling getRecipesFromAPI()
+ * @returns result of transaction, or -1 if error
  */
 const updateRecipes = async () => {
   let trendingRef = firestore.collection("recipes").doc("trending");
@@ -107,7 +113,7 @@ const updateRecipes = async () => {
     })
     .catch((err) => {
       console.log("Transaction failure:", err);
-      return err;
+      return -1;
     });
 };
 
@@ -134,10 +140,22 @@ app.get("/update", (req, res) => {
   });
 });
 
-// const job = new CronJob('* * * * * *', function () {
-//     console.log('You will see this message every second');
-// }, null, true, 'America/Los_Angeles');
-// job.start();
+/**
+ * @summary
+ * Cron job to run once everyday at 3:00am PST
+ * Calls updateRecipes()
+ */
+const job = new CronJob('0 3 * * * *', async () => {
+  console.log(Date.now().toString() + ": updating recipes");
+  const res = await updateRecipes();
+  if (res == -1) {
+    console.log(Date.now().toString() + ": failed to update recipes");
+  } else {
+    console.log(Date.now().toString() + ": recipes updated");
+  }
+
+}, null, true, 'America/Los_Angeles');
+job.start();
 
 initTrendingRecipes();
 app.listen(port, () => console.log("Listening on port", port));
