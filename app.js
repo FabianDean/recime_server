@@ -1,9 +1,7 @@
 require("dotenv").config();
-const CronJob = require("cron").CronJob;
-const admin = require("firebase-admin");
-const unirest = require("unirest");
 const express = require("express");
 const app = express();
+const admin = require("firebase-admin");
 const port = process.env.PORT;
 
 /**
@@ -27,17 +25,13 @@ app.get("/", (req, res) => {
   res.redirect("/api/trending.html");
 });
 
-let trendingRecipes = "";
-
 /**
  * @summary
- * A function to run once whenver the server starts.
- * Basically initializes trendingRecipes to whatever is currently in
- * Firestore
+ * Gets the current trending recipes stored in Firestore
  */
-const initTrendingRecipes = async () => {
+const getTrendingRecipes = async () => {
   let trendingRef = firestore.collection("recipes").doc("trending");
-  await firestore
+  return await firestore
     .runTransaction((t) => {
       return t.get(trendingRef).then((doc) => {
         const results = doc.data().results;
@@ -45,79 +39,9 @@ const initTrendingRecipes = async () => {
       });
     })
     .then((result) => {
-      console.log("Transaction success:", result);
-      trendingRecipes = result; // JSON string of recipes
-    })
-    .catch((err) => {
-      console.log("Transaction failure:", err);
-    });
-};
-
-/**
- * @summary
- * Call spoonacular API for list of 10 popular recipes to use for trendng section in ReciMe
- * @returns recipes, or -1 if error
- */
-const getRecipesFromAPI = async () => {
-  let request = unirest(
-    "GET",
-    "https://spoonacular-recipe-food-nutrition-v1.p.rapidapi.com/recipes/random"
-  );
-  let recipes = [];
-
-  request.query({
-    number: "10",
-  });
-  request.headers({
-    "x-rapidapi-host": "spoonacular-recipe-food-nutrition-v1.p.rapidapi.com",
-    "x-rapidapi-key": process.env.SPOONACULAR_API_KEY,
-  });
-  return await request.then((response) => {
-    if (response.error) {
-      console.log("An error occured");
-      return -1; // error
-    } else {
-      response.body.recipes.forEach((recipe) => {
-        recipes.push({
-          id: recipe.id.toString(),
-          imageURL: recipe.image,
-          title: recipe.title,
-        });
-      });
-    }
-    return recipes; // an array of JSON objects containing recipes
-  });
-};
-
-/**
- * @summary
- * Update the recipes currently in the Firebase projects with new ones from
- * calling getRecipesFromAPI()
- * @returns result of transaction, or -1 if error
- */
-const updateRecipes = async () => {
-  let trendingRef = firestore.collection("recipes").doc("trending");
-  let newRecipes = await getRecipesFromAPI();
-  return await firestore
-    .runTransaction((t) => {
-      return t.get(trendingRef).then((doc) => {
-        if (newRecipes != -1) {
-          t.set(trendingRef, {
-            results: newRecipes
-          });
-          return Promise.resolve(JSON.stringify(newRecipes));
-        } else {
-          return Promise.reject("Error getting new recipes.");
-        }
-      });
-    })
-    .then((result) => {
-      console.log("Transaction success:", result);
-      trendingRecipes = result; // JSON string of recipes
       return result;
     })
     .catch((err) => {
-      console.log("Transaction failure:", err);
       return -1;
     });
 };
@@ -126,9 +50,10 @@ const updateRecipes = async () => {
  * @summary
  * Route to retrieve current trending recipes stored in trendingRecipes
  */
-app.get("/api/utils/getTrending", (req, res) => {
-  if (trendingRecipes === "") {
-    res.status(500).send("empty");
+app.get("/api/utils/getTrending", async (req, res) => {
+  let trendingRecipes = await getTrendingRecipes();
+  if (trendingRecipes == -1) {
+    res.status(500).send("error");
     return;
   }
   res.status(200).send(trendingRecipes);
@@ -145,22 +70,4 @@ app.get("/api/utils/getTrending", (req, res) => {
 //   });
 // });
 
-/**
- * @summary
- * Cron job to run once everyday at 3:00am PST
- * Calls updateRecipes()
- */
-const job = new CronJob('0 3 * * * *', async () => {
-  console.log(Date.now().toString() + ": updating recipes");
-  const res = await updateRecipes();
-  if (res == -1) {
-    console.log(Date.now().toString() + ": failed to update recipes");
-  } else {
-    console.log(Date.now().toString() + ": recipes updated");
-  }
-
-}, null, true, 'America/Los_Angeles');
-job.start();
-
-initTrendingRecipes();
 app.listen(port, () => console.log("Listening on port", port));
